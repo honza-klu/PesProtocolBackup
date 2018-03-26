@@ -16,9 +16,24 @@ def _adapt_unixtime(val):
 sqlite3.register_converter("unixtime", _convert_unixtime)
 sqlite3.register_adapter(datetime.datetime, _adapt_unixtime)
 
+def list_protocols(db_path):
+  db = sqlite3.connect(db_path, detect_types = sqlite3.PARSE_DECLTYPES |sqlite3.PARSE_COLNAMES)
+  ret =[]
+  try:
+    cur = db.cursor()
+    cur.execute('SELECT id, name, begin as "begin [unixtime]",'
+                'end as "end [unixtime]"FROM protocols')
+    for prot in cur:
+      ret.append({"id": prot[0], "name": prot[1], 
+                "begin": prot[2], "end": prot[3]})
+  finally:
+    cur.close()
+  db.close()
+  return ret
+
 class Protocol:
   def __init__(self, db_path, prot_id=None, json_data=None):
-    self.db = sqlite3.connect(db_path, detect_types = sqlite3.PARSE_DECLTYPES |sqlite3.PARSE_COLNAMES) #, detect_types = sqlite3.PARSE_DECLTYPES |sqlite3.PARSE_COLNAMES
+    self.db = sqlite3.connect(db_path, detect_types = sqlite3.PARSE_DECLTYPES |sqlite3.PARSE_COLNAMES)
     self.data = []
     self.prot_id = None
     if prot_id:
