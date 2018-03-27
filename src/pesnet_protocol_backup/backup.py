@@ -8,10 +8,11 @@ import json
 #tz = pytz.timezone('Europe/Prague')
 
 def _convert_unixtime(val):
-    return datetime.datetime.fromtimestamp(float(val))
+  return datetime.datetime.fromtimestamp(float(val))
 
 def _adapt_unixtime(val):
-    return val.timestamp()
+#return int((time.mktime(val.timetuple())+val.microsecond/1000000.0))
+  return val.timestamp()
 
 sqlite3.register_converter("unixtime", _convert_unixtime)
 sqlite3.register_adapter(datetime.datetime, _adapt_unixtime)
@@ -98,7 +99,9 @@ datetime>? AND datetime<?""", (self.begin,self.end,))
     self.data = json_data["data"]
     for rec in self.data:
       rec["datetime"] = dateutil.parser.parse(rec["datetime"])
+
   def save_protocol(self):
+  #TODO: Check if there are no data in saved interval
     try:
       cur = self.db.cursor()
       cur.execute("BEGIN")
