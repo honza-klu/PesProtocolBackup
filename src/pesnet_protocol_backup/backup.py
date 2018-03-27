@@ -91,6 +91,7 @@ datetime>? AND datetime<?""", (self.begin,self.end,))
 
   def load_json(self, json_data):
     #TODO: Accept stream as json_data
+    if isinstance(json_data, str) or isinstance
     json_data = json.loads(json_data)
     self.name = json_data["name"]
     self.begin = dateutil.parser.parse(json_data["begin"])
@@ -109,7 +110,7 @@ datetime>? AND datetime<?""", (self.begin,self.end,))
       prot_id = cur.lastrowid
       for prot_data in self.protocol_data:
         cur.execute('INSERT INTO protocols_data(protocol_id, record_id) VALUES (?, ?)',
-                   (prot_data["protocol_id"], prot_data["record_id"],))
+                   (prot_id, prot_data["record_id"],))
       for rec in self.data:
         cur.execute('INSERT INTO data(record_id, datetime, value, d_value)' 
                    'VALUES (?, ?, ?, ?)',
