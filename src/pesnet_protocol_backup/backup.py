@@ -1,18 +1,18 @@
 import sqlite3
 import datetime
 import dateutil.parser
-#import pytz
 import time
 import json
 
-#tz = pytz.timezone('Europe/Prague')
+
+class ProtocolOverlapError(Exception):
+  pass
 
 def _convert_unixtime(val):
-  return datetime.datetime.fromtimestamp(float(val))
+    return datetime.datetime.fromtimestamp(float(val))
 
 def _adapt_unixtime(val):
-#return int((time.mktime(val.timetuple())+val.microsecond/1000000.0))
-  return val.timestamp()
+  return int((time.mktime(val.timetuple())+val.microsecond/1000000.0))
 
 sqlite3.register_converter("unixtime", _convert_unixtime)
 sqlite3.register_adapter(datetime.datetime, _adapt_unixtime)
@@ -67,7 +67,7 @@ class Protocol:
       self.data = []
       rows = cur.execute("""SELECT record_id, datetime as "datetime [unixtime]",
 value, d_value FROM data WHERE 
-datetime>? AND datetime<?""", (self.begin,self.end,))
+datetime>? AND datetime<?""", (self.begin, self.end,))
       for row in rows:
         self.data.append({"record_id": row[0], "datetime": row[1],
   "value": row[2], "d_value": row[3]})
@@ -91,7 +91,6 @@ datetime>? AND datetime<?""", (self.begin,self.end,))
 
   def load_json(self, json_data):
     #TODO: Accept stream as json_data
-    if isinstance(json_data, str) or isinstance
     json_data = json.loads(json_data)
     self.name = json_data["name"]
     self.begin = dateutil.parser.parse(json_data["begin"])
@@ -100,12 +99,33 @@ datetime>? AND datetime<?""", (self.begin,self.end,))
     self.data = json_data["data"]
     for rec in self.data:
       rec["datetime"] = dateutil.parser.parse(rec["datetime"])
-
   def save_protocol(self):
-  #TODO: Check if there are no data in saved interval
+    #Check conflicting protocols
+    cur = self.db.cursor()
+    cur.execute('SELECT id, name, begin as "begin [unixtime]", '
+                'end as "end [unixtime]" FROM protocols WHERE '
+                "(begin>=? AND begin<=?) or (end>=? AND end<=?);",
+                (self.begin, self.end, self.begin, self.end,)
+    )
+    conflicting = []
+    conflicts = cur.fetchall()
+    for conf in conflicts:
+      print("Conflicting protocol id:%d %s - %s" % (conf[0], 
+                                                    str(conf[2]), conf[3]))
+      conflicting.append({"name": conf[1], "id": conf[1]})
+    if len(conflicts)>0:
+      raise ProtocolOverlapError("There are conflicting protocols id:%d %s - %s" % 
+                     (conflicts[0][0], str(conflicts[0][2]), conflicts[0][3]))
+    #Check conflicting data
+    cur.execute('SELECT count() FROM data WHERE '
+                "(datetime>=? AND datetime<=?);",
+                (self.begin, self.end))
+    conf_data = cur.fetchone()[0]
+    if conf_data>0:
+      raise ProtocolOverlapError("There are conflicting data")
     try:
+#TODO: add transaction support
       cur = self.db.cursor()
-      cur.execute("BEGIN")
       cur.execute('INSERT INTO protocols(name, begin, end) VALUES (?, ?, ?);', (self.name, self.begin, self.end))
       prot_id = cur.lastrowid
       for prot_data in self.protocol_data:
@@ -116,7 +136,8 @@ datetime>? AND datetime<?""", (self.begin,self.end,))
                    'VALUES (?, ?, ?, ?)',
                    (rec["record_id"], rec["datetime"],
                    rec["value"], rec["d_value"],))
-      cur.execute("END")
+      self.db.commit()
     except Exception as e:
-      cur.execute("ROLLBACK")
+      print(e)
       raise e
+    print("finished")
