@@ -99,6 +99,7 @@ datetime>? AND datetime<?""", (self.begin, self.end,))
     self.data = json_data["data"]
     for rec in self.data:
       rec["datetime"] = dateutil.parser.parse(rec["datetime"])
+      
   def save_protocol(self):
     #Check conflicting protocols
     cur = self.db.cursor()
@@ -141,3 +142,9 @@ datetime>? AND datetime<?""", (self.begin, self.end,))
       print(e)
       raise e
     print("finished")
+    
+  def offset_protocol(self, offset):
+    self.begin = self.begin+offset
+    self.end = self.end+offset
+    for d in self.data:
+      d["datetime"] += offset

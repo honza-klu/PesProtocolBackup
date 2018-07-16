@@ -1,4 +1,5 @@
 import argparse
+import datetime
 import gzip
 import os
 import gc
@@ -27,8 +28,11 @@ if __name__ == "__main__":
   parser.add_argument(("--id"), type=int, required=False, default=None)
   parser.add_argument("--output", "-o", type=str,
                      help="Name of output file", default=None)
+#TODO: prepare argument inputs for giving array and leave input for single input.
   parser.add_argument("--input", "-i", type=str, nargs='+',
                      help="Name of input file", default=None)
+  parser.add_argument("--start", "-s", type=str,
+                     help="Set start of imported protocol to different time", default=None)
   parser.add_argument("--compress", action="store_const", default=None,
                      const="gzip")
   args = parser.parse_args()
@@ -49,6 +53,14 @@ if __name__ == "__main__":
     if not args.input:
       print("Path to input file is required")
       exit(-1)
+    if args.start and len(args.input)!=1:
+      print("Exactly one input file is required when changing protocol start")
+      exit(-1)
+    if args.start:
+      try:
+        datetime.datetime.strptime(args.start, "%Y-%m-%d %H:%M:%S")
+      except ValueError:
+        print("Wrong time format, use:%Y-%m-%d %H:%M:%S")
     prot = Protocol(db_path)
     for inp in args.input:
       f = open(inp, 'rb')
@@ -65,11 +77,18 @@ if __name__ == "__main__":
       prot.load_json(data)
       data = None
       gc.collect()
+      if args.start:
+        req_start = datetime.datetime.strptime(args.start, "%Y-%m-%d %H:%M:%S")
+        true_start = prot.begin
+        offset = req_start-true_start
+        prot.name = "new protocol"
+        prot.offset_protocol(offset)
       print("Importing protocol named %s" % (prot.name))
       try:
         prot.save_protocol()
       except ProtocolOverlapError as e:
         print("Skipping conflicting protocol")
+        print(e)
   elif args.action=="list":
     protocols = list_protocols(db_path)
     for prot in protocols:
