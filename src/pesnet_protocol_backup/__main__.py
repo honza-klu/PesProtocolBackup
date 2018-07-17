@@ -10,12 +10,11 @@ from pesnet_protocol_backup import ProtocolOverlapError
 
 def backup_prot(db_path, prot_id, output_file, compress=None):
   prot = Protocol(db_path, prot_id)
-  data = prot.get_json()
   if compress==None:
-    f = open(output_file, 'wb')
+    f = open(output_file, 'w')
   elif compress=="gzip":
-    f = gzip.open(output_file, 'wb')
-  f.write(data.encode('utf8'))
+    f = gzip.open(output_file, 'w')
+  prot.get_json(f)
   f.close()
 
 if __name__ == "__main__":

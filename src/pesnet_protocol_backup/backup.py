@@ -77,9 +77,9 @@ datetime>? AND datetime<?""", (self.begin, self.end,))
     finally:
       cur.close()
 
-  def get_json(self):
+  def get_json(self, ostream=None):
     def json_serial(obj):
-      """This function takes care of serializing date for json"""
+      """This function takes care of serializing data for json"""
       if isinstance(obj, (datetime.datetime, )):
         return obj.isoformat()
       raise TypeError("Type %s is not serializable" % type(obj))
@@ -87,6 +87,11 @@ datetime>? AND datetime<?""", (self.begin, self.end,))
       raise ValueError("Protocol id is not set")
     ret = {"name": self.name, "begin": self.begin, "end": self.end,
           "protocol_data": self.protocol_data, "data": self.data}
+    if ostream:
+      if not hasattr(ostream, 'write'):
+        raise ValueError("Given objet miss write attribute")
+      json.dump(ret, ostream, default=json_serial)
+      return
     return json.dumps(ret, default=json_serial)
 
   def load_json(self, json_data):
