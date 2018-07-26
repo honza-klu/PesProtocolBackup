@@ -4,6 +4,43 @@ import dateutil.parser
 import time
 import json
 
+class ProtocolRecord():
+  """Custom class used to store protocol records. It is used instead of dict to save memory"""
+  __slots__ = ('record_id', 'datetime', 'value', 'd_value')
+  def __init__(self, inp):
+    self.record_id = inp['record_id']
+    self.datetime = inp['datetime']
+    self.value = inp['value']
+    self.d_value = inp['d_value']
+  def __getitem__(self, key):
+    if key=='record_id':
+      return self.record_id
+    elif key=='datetime':
+      return self.datetime
+    elif key=='value':
+      return self.value
+    elif key=='d_value':
+      return self.d_value
+    else:
+      raise KeyError()
+  def __setitem__(self, key, value):
+    if key=='record_id':
+      self.record_id = value
+    elif key=='datetime':
+      self.datetime = value
+    elif key=='value':
+      self.value = value
+    elif key=='d_value':
+      self.d_value = value
+    else:
+      raise KeyError()
+  def __delitem__(self, key):
+    pass
+  def keys(self):
+    return self.__slots__
+  def todict(self):
+    return {"record_id": self.record_id, "datetime": self.datetime,
+            "value": self.value, "d_value": self.d_value}
 
 class ProtocolOverlapError(Exception):
   pass
@@ -69,8 +106,8 @@ class Protocol:
 value, d_value FROM data WHERE 
 datetime>? AND datetime<?""", (self.begin, self.end,))
       for row in rows:
-        self.data.append({"record_id": row[0], "datetime": row[1],
-  "value": row[2], "d_value": row[3]})
+        self.data.append(ProtocolRecord({"record_id": row[0], "datetime": row[1],
+  "value": row[2], "d_value": row[3]}))
     except Exception as e:
       self.prot_id = None
       raise e
@@ -82,9 +119,9 @@ datetime>? AND datetime<?""", (self.begin, self.end,))
       """This function takes care of serializing data for json"""
       if isinstance(obj, (datetime.datetime, )):
         return obj.isoformat()
+      elif isinstance(obj, ProtocolRecord):
+        return obj.todict()
       raise TypeError("Type %s is not serializable" % type(obj))
-    if self.prot_id==None:
-      raise ValueError("Protocol id is not set")
     ret = {"name": self.name, "begin": self.begin, "end": self.end,
           "protocol_data": self.protocol_data, "data": self.data}
     if ostream:
@@ -95,8 +132,15 @@ datetime>? AND datetime<?""", (self.begin, self.end,))
     return json.dumps(ret, default=json_serial)
 
   def load_json(self, json_data):
+    def json_decode(obj):
+      if all(k in obj.keys() for k in
+             ('record_id', 'datetime', 'value', 'd_value')):
+        print("is ProtocolRecord")
+        return ProtocolRecord(obj)
+      else:
+        return(obj)
     #TODO: Accept stream as json_data
-    json_data = json.loads(json_data)
+    json_data = json.loads(json_data, object_hook=json_decode)
     self.name = json_data["name"]
     self.begin = dateutil.parser.parse(json_data["begin"])
     self.end = dateutil.parser.parse(json_data["end"])
