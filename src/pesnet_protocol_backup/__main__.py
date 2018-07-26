@@ -71,10 +71,8 @@ if __name__ == "__main__":
         f.close()
         f = gzip.open(inp, 'rb')
       data = f.read()
-      data=data.decode('utf8')
+      prot.load_json(f)
       f.close()
-      prot.load_json(data)
-      data = None
       gc.collect()
       if args.start:
         req_start = datetime.datetime.strptime(args.start, "%Y-%m-%d %H:%M:%S")

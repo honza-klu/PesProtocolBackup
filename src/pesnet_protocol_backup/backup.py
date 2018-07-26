@@ -135,12 +135,17 @@ datetime>? AND datetime<?""", (self.begin, self.end,))
     def json_decode(obj):
       if all(k in obj.keys() for k in
              ('record_id', 'datetime', 'value', 'd_value')):
-        print("is ProtocolRecord")
         return ProtocolRecord(obj)
       else:
         return(obj)
     #TODO: Accept stream as json_data
-    json_data = json.loads(json_data, object_hook=json_decode)
+    if isinstance(json_data, str):
+      json_data = json.loads(json_data, object_hook=json_decode)
+    elif hasattr(json_data, 'read'):
+      json_data = json.load(json_data, object_hook=json_decode)
+    else:
+      raise TypeError("Cant handle json_data type(%s)" %
+                      type(json_data).__name__)
     self.name = json_data["name"]
     self.begin = dateutil.parser.parse(json_data["begin"])
     self.end = dateutil.parser.parse(json_data["end"])
