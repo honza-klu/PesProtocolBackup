@@ -64,6 +64,7 @@ if __name__ == "__main__":
         datetime.datetime.strptime(args.start, "%Y-%m-%d %H:%M:%S")
       except ValueError:
         print("Wrong time format, use:%Y-%m-%d %H:%M:%S")
+        exit(-1)
     prot = Protocol(db_path)
     for inp in args.input:
       f = open(inp, 'rb')
@@ -74,7 +75,6 @@ if __name__ == "__main__":
         print("Compression detected")
         f.close()
         f = gzip.open(inp, 'rb')
-      data = f.read()
       prot.load_json(f)
       f.close()
       gc.collect()
@@ -124,4 +124,4 @@ if __name__ == "__main__":
         continue
       print("Backing up protocol[%d]: %s to %s" %
            (prot["id"], prot["name"], file_name,))
-      backup_prot(db_path, prot["id"], file_name, args.compress)
+      backup_prot(db_path, prot["id"], file_name, args.compress) 

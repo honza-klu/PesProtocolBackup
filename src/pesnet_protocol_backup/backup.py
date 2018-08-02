@@ -232,6 +232,7 @@ datetime>? AND datetime<?""", (self.begin, self.end,))
       return len(self.data)
     elif self.db and self.prot_id:
       cur = self.db.cursor()
+      #WARNING: This expects that all records are in protocol.
       cur.execute('SELECT count() FROM data WHERE datetime>? AND datetime<?;',
                   (self.begin, self.end)
                  )
