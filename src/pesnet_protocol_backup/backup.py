@@ -70,9 +70,14 @@ def list_protocols(db_path):
   return ret
 
 class Protocol:
-  def __init__(self, db_path, prot_id=None, json_data=None):
-    self.db = sqlite3.connect(db_path, detect_types = sqlite3.PARSE_DECLTYPES |sqlite3.PARSE_COLNAMES)
-    self.data = []
+  def __init__(self, db_path=None, prot_id=None, json_data=None):
+    if db_path:
+      self.db_path = db_path
+      self.db = sqlite3.connect(db_path, detect_types = sqlite3.PARSE_DECLTYPES |sqlite3.PARSE_COLNAMES)
+    else:
+      self.db = None
+      self.db_path = None
+    self.data = None
     self.prot_id = None
     if prot_id:
       self._load_protocol(prot_id)
@@ -80,9 +85,11 @@ class Protocol:
       self._load_json(json_data)
     else:
       prot_id = None
-
-  def _load_protocol(self, prot_id):
-    self.prot_id = prot_id
+  def _load_protocol_meta(self, prot_id=None):
+    if prot_id is not None:
+      self.prot_id = prot_id
+    if self.prot_id is None:
+      raise ValueError("Undefined protocol_id")
     try:
       cur = self.db.cursor()
       #load metadata
@@ -100,6 +107,24 @@ class Protocol:
                         (self.prot_id,))
       for row in rows:
         self.protocol_data.append({"protocol_id": row[0], "record_id": row[1]})
+    except Exception as e:
+      self.prot_id = None
+      self.name = None
+      self.begin = None
+      self.end = None
+      #load records
+      self.protocol_data = []
+      raise e
+    finally:
+      cur.close()
+  def _load_protocol(self, prot_id=None):
+    if prot_id is not None:
+      self.prot_id = prot_id
+    if self.prot_id is None:
+      raise ValueError("Undefined protocol_id")
+    self._load_protocol_meta(prot_id)
+    try:
+      cur = self.db.cursor()
       #load data
       self.data = []
       rows = cur.execute("""SELECT record_id, datetime as "datetime [unixtime]",
@@ -110,6 +135,7 @@ datetime>? AND datetime<?""", (self.begin, self.end,))
   "value": row[2], "d_value": row[3]}))
     except Exception as e:
       self.prot_id = None
+      self.data = None
       raise e
     finally:
       cur.close()
@@ -153,7 +179,6 @@ datetime>? AND datetime<?""", (self.begin, self.end,))
     self.data = json_data["data"]
     for rec in self.data:
       rec["datetime"] = dateutil.parser.parse(rec["datetime"])
-      
   def save_protocol(self):
     #Check conflicting protocols
     cur = self.db.cursor()
@@ -202,3 +227,16 @@ datetime>? AND datetime<?""", (self.begin, self.end,))
     self.end = self.end+offset
     for d in self.data:
       d["datetime"] += offset
+  def sample_cnt(self):
+    if self.data is not None:
+      return len(self.data)
+    elif self.db and self.prot_id:
+      cur = self.db.cursor()
+      cur.execute('SELECT count() FROM data WHERE datetime>? AND datetime<?;',
+                  (self.begin, self.end)
+                 )
+      return cur.fetchone()[0]
+    else:
+      raise ValueError('Cannot get protocol with aviable parameters')
+  def duration(self):
+    return (self.end - self.begin)

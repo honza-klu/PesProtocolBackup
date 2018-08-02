@@ -20,7 +20,7 @@ def backup_prot(db_path, prot_id, output_file, compress=None):
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='Manipulate protocols in database export and import them')
   parser.add_argument("action", action="store", type=str,
-                     choices=['export', 'import', 'list', 'backup_all'],
+                     choices=['export', 'import', 'list', 'list_problems', 'backup_all'],
                      help="Select required action")
   parser.add_argument("db_path", type=str,
                      help="Path to database")
@@ -34,6 +34,10 @@ if __name__ == "__main__":
                      help="Set start of imported protocol to different time", default=None)
   parser.add_argument("--compress", action="store_const", default=None,
                      const="gzip")
+  parser.add_argument(("--sps"), type=float, required=False, default=None,
+                      help="Samples per second in ideal protocol.")
+  parser.add_argument(("--sps_tolerance"), type=float, required=False, default=1.05,
+                      help="Tolerance of sps of correct protocol 1.0=100%.")
   args = parser.parse_args()
 
   db_path = args.db_path
@@ -91,6 +95,21 @@ if __name__ == "__main__":
     for prot in protocols:
       print("Protocol[%d]: %s.\tStarting at:%s\tending at:%s." %
            (prot["id"], prot["name"], prot["begin"], prot["end"]))
+  elif args.action=="list_problems":
+    protocols = list_protocols(db_path)
+    for prot_dict in protocols:
+      prot=Protocol(db_path, prot_dict['id'])
+      prot._load_protocol_meta()
+      sps = prot.sample_cnt()/prot.duration().total_seconds()
+      req_sps = args.sps
+      sps_tol = 1.0 + args.sps_tolerance
+      #Print all if there are no filters enabled
+      if not req_sps:
+        print("Protocol[%d] SPS:%f.\tStarting at:%s\tending at:%s." %
+             (prot.prot_id, sps, prot.begin, prot.end))
+      if req_sps and not (req_sps/sps_tol < sps < req_sps*sps_tol):
+        print("Protocolx[%d] SPS:%f.\tStarting at:%s\tending at:%s." %
+             (prot.prot_id, sps, prot.begin, prot.end))
   elif args.action=="backup_all":
     if args.output==None:
       print("Path to output directory is required")
